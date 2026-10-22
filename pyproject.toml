@@ -1,5 +1,5 @@
 [project]
-name = "trackmodul-as26"
+name = "DobotHub"
 version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = ["pyserial>=3.5"]
