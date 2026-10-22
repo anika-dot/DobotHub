@@ -11,7 +11,7 @@ parse
 
 '''
 
-class DobotProtocol:
+class Client:
 
     def __init__(
         self,
