@@ -21,6 +21,7 @@ robot.get_alarms()
 
 '''
 
+from .client import Client
 
 
 class Dobot:
@@ -28,25 +29,22 @@ class Dobot:
     Control a Dobot robot.
     '''
 
+    def __init__(self, port):
+        self.client = Client(port)
 
-    def __init__(
-        self,
-        port: str,
-        *,
-        baudrate: int = 115200,
-        timeout: float = 1.0,
-    ) -> None:
-        self._protocol = DobotProtocol(
-            port=port,
-            baudrate=baudrate,
-            timeout=timeout,
-        )
+    
 
-    def connect(self) -> None:
-        self._protocol.connect()
+    def connect(self):
+        """
+        Connect to the Dobot robot.
+        """
+        self.client.connect()
 
-    def disconnect(self) -> None:
-        self._protocol.disconnect()
+    def disconnect(self):
+        """
+        Disconnect from the Dobot robot.
+        """
+        self.client.disconnect()
 
     def move_to(
         self,
@@ -58,7 +56,7 @@ class Dobot:
         mode: PTPMode = PTPMode.MOVL_XYZ,
         wait: bool = True,
     ) -> None:
-        self._protocol.move_to(
+        self.client.move_to(
             x=x,
             y=y,
             z=z,
@@ -68,19 +66,25 @@ class Dobot:
         )
 
     def get_pose(self) -> Pose:
-        return self._protocol.get_pose()
+        """
+        Get the current pose of the Dobot robot.
+        """
+        return self.client.get_pose()
 
     def home(self) -> None:
-        self._protocol.home()
+        """
+        Move the Dobot robot to the home position.
+        """
+        self.client.home()
 
     def gripper_open(self) -> None:
-        self._protocol.gripper_open()
+        self.client.gripper_open()
 
     def gripper_close(self) -> None:
-        self._protocol.gripper_close()
+        self.client.gripper_close()
 
     def get_ir(self) -> bool:
-        return self._protocol.get_ir()
+        return self.client.get_ir()
 
     def get_color(self):
-        return self._protocol.get_color()
+        return self.client.get_color()
