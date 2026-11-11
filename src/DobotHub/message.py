@@ -1,5 +1,6 @@
 """
 Dobot Protocol Package.
+Build messages to send to the Dobot and parse messages received from the Dobot.
 """
 
 from .parser import parsers

@@ -1,5 +1,9 @@
 """
 Parser for the Dobot communication specification v1.1.5
+Translates between the raw bytes received from the Dobot 
+and the Python data types used in this library.
+Contains a dictionary of parsers for each message ID.
+
 The rationale around implementing the parser this way is due to it being concise,
 somewhat readable (given you have access to the API reference) and scalable -
 with the ability to easily add or change parsers in the future
@@ -12,8 +16,8 @@ value[2] = parser for response to setters (direction=in, rw=1, isQueued=1)
 value[3] = parser for request to setters (direction=out, rw=1, isQueued=0/1)
 
 Info:
-Dobotmaster contains some changes to the API reference, which are not reflected in this parser. The following message IDs are affected:
-62, 137, 138
+Dobotmaster contains some changes to the API reference, which are not reflected in this parser. 
+The following message IDs are affected: 62, 137, 138
 """
 
 import struct
