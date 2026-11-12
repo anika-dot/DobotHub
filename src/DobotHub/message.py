@@ -7,6 +7,8 @@ from .parser import parsers
 
 
 class Message:
+    """
+    Represents a message to be sent to or received from the Dobot."""
     def __init__(self, header, length, id, rw, is_queued, params, direction='in'):
         self.header = header
         self.length = length

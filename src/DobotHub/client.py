@@ -12,6 +12,8 @@ parse
 
 '''
 
+from time import sleep
+
 import serial
 import threading # needed for the client to handle multiple incoming messages
 
@@ -41,6 +43,13 @@ class Client:
 
     def connected(self):
         return self.serial.isOpen()
+
+    def close(self):
+        """
+        Added. Close the serial connection to the Dobot.
+        """
+        if self.serial.is_open:
+            self.serial.close()
 
     def get_device_serial_number(self):
         request = Message([0xAA, 0xAA], 2, 0, False, False, [], direction='out')
@@ -105,6 +114,12 @@ class Client:
 
     def set_homing_command(self, command, queue=True):
         request = Message([0xAA, 0xAA], 2, 31, True, queue, [command], direction='out')
+        return self.send(request)
+
+    def home(self):
+        """
+        Added. Home Dobot to it's zero-point positions."""
+        request = Message([0xAA, 0xAA], 2, 31, True, True, [0x00], direction='out')
         return self.send(request)
 
     # TODO: Reference is wrong here, arm does not send the said value
@@ -309,6 +324,17 @@ class Client:
         request = Message([0xAA, 0xAA], 2, 110, True, queue, [milliseconds], direction='out')
         return self.send(request)
 
+    def wait_until_done(self, target_index=None):
+        """
+        Added. Waits until the Dobot has processed all commands up to the specified index.
+        If no index is specified, it waits for the end of the current queue.
+        """
+        sleep(0.1)
+        if target_index is None:
+            target_index = self.get_current_queue_index()
+        while self.get_current_queue_index() < target_index:
+            sleep(0.1)
+
     def set_trigger_command(self, address, mode, condition, threshold, queue=True):
         request = Message([0xAA, 0xAA], 2, 120, True, queue, [address, mode, condition, threshold], direction='out')
         return self.send(request)
@@ -349,6 +375,16 @@ class Client:
         request = Message([0xAA, 0xAA], 2, 135, True, queue, [index, enable, speed], direction='out')
         return self.send(request)
 
+    def set_conveyor_speed(self, speed, index=0, enable=True, queue=True):
+        """
+        Added. Run the conveyor belt at the given speed in mm/s (negative = reverse).
+        Conversion from mm/s to motor pulses/s as in the official Dobot demo.
+        """
+        steps_per_circle = 360.0 / 1.8 * 10.0 * 16.0
+        mm_per_circle = 3.1415926535898 * 36.0
+        pulses = speed * steps_per_circle / mm_per_circle
+        return self.set_extended_motor_velocity(index, enable, pulses, queue)
+
     def get_color_sensor(self, index):
         request = Message([0xAA, 0xAA], 2, 137, False, False, [], direction='out')
         return self.send(request)
@@ -357,9 +393,18 @@ class Client:
         request = Message([0xAA, 0xAA], 2, 137, True, queue, [enable, port, version], direction='out')
         return self.send(request)
 
-    def get_ir_switch(self, index):
+    def get_ir_switch(self, port): # Added. Changed from "index" to "port" 
         request = Message([0xAA, 0xAA], 2, 138, False, False, [], direction='out')
+        request.raw_params = [port]  # Added. getters have no out-parser, so set the payload directly
         return self.send(request)
+
+    def get_ir_state(self, port):
+        """
+        Added. Returns True if the IR sensor (light barrier) on the given port detects an object.
+        The sensor must be enabled first with set_ir_switch().
+        """
+        result = self.get_ir_switch(port)
+        return bool(result) and result[0] == 1
 
     def set_ir_switch(self, index, enable, port, version, queue=True):
         request = Message([0xAA, 0xAA], 2, 138, True, queue, [enable, port, version], direction='out')
