@@ -22,9 +22,20 @@ robot.get_alarms()
 '''
 
 from time import sleep, time
+from serial.tools import list_ports
 
 from .client import Client
+from .exceptions import DobotConnectionError
+from .types import Pose, Position, Joints, GP1, GP2, GP4, GP5
 
+
+
+def find_port(): # TODO: A: Check if this is needed?
+    """Return the first serial port that looks like a Dobot (USB VID 4292/6790)."""
+    for p in list_ports.comports():
+        if p.vid in (4292, 6790):
+            return p.device
+    raise DobotConnectionError("No Dobot found")   # from exceptions.py #TODO: A: Create exception file
 
 class Dobot:
     """
@@ -32,6 +43,7 @@ class Dobot:
     """
     def __init__(self, port):
         self.client = Client(port)
+        #self.client = Client(port or find_dobot_port()) #TODO: A: Check if this option is needed?
 
         self.client.stop_queue(True)
         self.client.clear_queue()
@@ -55,12 +67,21 @@ class Dobot:
         """
         return self.client.connected()
 
+# ----- Get Pose -----
     def get_pose(self):
         """
         Returns the current pose of the Dobot as a tuple (x, y, z, r, joint1, joint2, joint3, joint4).
         """
         return self.client.get_pose()
 
+    def get_pose_named(self):
+        """
+        Returns the current pose of the Dobot as a Pose object with named attributes.
+        """
+        v = self.client.get_pose()
+        return Pose(Position(*v[:4]), Joints(*v[4:8]))
+
+# ----- Homing -----
     def home(self, wait=True):
         """
         Move the Dobot to the home position.
@@ -69,6 +90,13 @@ class Dobot:
         if wait:
             self.wait()
 
+    def set_home(self, x, y, z, r=0):
+        """
+        Set the given position as the home position.
+        """
+        self.client.set_homing_parameters(x, y, z, r)
+    
+# ----- Movement -----
     def move_to(self, x, y, z, r, mode=3, wait=True):
         """
         Move to the absolute coordinate, one axis at a time.
@@ -105,6 +133,7 @@ class Dobot:
         if wait:
             self.wait()
 
+# ----- Waiting -----
     def wait(self, queue_index=None):
         """
         Wait until the instruction finishes.
@@ -122,6 +151,7 @@ class Dobot:
 
             sleep(0.5)
 
+# ----- Path Following -----
     def follow_path(self, path, wait=True):
         """
         Move according to the given path, which is a list of points [(x1, y1, z1), (x2, y2, z2), ...].
@@ -148,7 +178,6 @@ class Dobot:
         if wait:
             self.wait(queue_index)
 
-
 #### Added.
 # ----- Speed -----
     def speed(self, velocity=100, acceleration=100):
@@ -158,6 +187,19 @@ class Dobot:
         """
         self.client.set_point_to_point_common_params(velocity, acceleration)
         self.client.set_point_to_point_coordinate_params(velocity, velocity, acceleration, acceleration)
+
+# ----- Alarms -----
+    def get_alarms(self):
+        """
+        Returns a list of active alarms as a bitmask.
+        """
+        return self.client.get_alarms_state()      # later: decode the bits into an Alarm enum
+    
+    def clear_alarms(self):
+        """
+        Clear all active alarms.
+        """
+        self.client.clear_alarms_state()
 
 # ----- Gripper -----
     def gripper_open(self, wait=True, delay=500):
@@ -204,76 +246,89 @@ class Dobot:
         if wait:
             self.wait()
 
-
-# Sensor ports on the Dobot Magician base
-GP1, GP2, GP4, GP5 = 0, 1, 2, 3
-
 # ----- Conveyor belt -----
-def conveyor(self, speed, index=0):
-    """
-    Run the conveyor belt at the given speed in mm/s (negative = reverse).
-    """
-    self.client.set_conveyor_speed(speed, index)
+    def conveyor(self, speed, index=0):
+        """
+        Run the conveyor belt at the given speed in mm/s (negative = reverse).
+        """
+        self.client.set_conveyor_speed(speed, index)
 
-def conveyor_stop(self, index=0):
-    """
-    Stop the conveyor belt.
-    """
-    self.client.set_conveyor_speed(0, index)
+    def conveyor_stop(self, index=0):
+        """
+        Stop the conveyor belt.
+        """
+        self.client.set_conveyor_speed(0, index)
 
-def conveyor_distance(self, distance, speed=50, index=0):
-    """
-    Move the belt by a distance in mm. Blocks until done (host-side timing).
-    """
-    self.conveyor(speed if distance >= 0 else -speed, index)
-    sleep(abs(distance) / speed)
-    self.conveyor_stop(index)
+    def conveyor_distance(self, distance, speed=50, index=0):
+        """
+        Move the belt by a distance in mm. Blocks until done (host-side timing).
+        """
+        self.conveyor(speed if distance >= 0 else -speed, index)
+        sleep(abs(distance) / speed)
+        self.conveyor_stop(index)
 
 # ----- IR sensor (light barrier) -----
-def ir_enable(self, port=GP4, enable=True):
-    """
-    Enable or disable the IR sensor (light barrier) on the given port.
-    """
-    self.client.set_ir_switch(0, int(enable), port, 1)  # version 1 = sensor V2
+    def ir_enable(self, port=GP4, enable=True):
+        """
+        Enable or disable the IR sensor (light barrier) on the given port.
+        """
+        self.client.set_ir_switch(0, int(enable), port, 1)  # version 1 = sensor V2
 
-def get_ir(self, port=GP4):
-    """
-    Returns True if the IR sensor (light barrier) on the given port detects an object.
-    """
-    return self.client.get_ir_state(port)
+    def get_ir(self, port=GP4):
+        """
+        Returns True if the IR sensor (light barrier) on the given port detects an object.
+        """
+        return self.client.get_ir_state(port)
 
-def wait_for_object(self, port=GP4, timeout=None):
-    """
-    Block until the light barrier detects an object. Returns False on timeout.
-    """
-    start = time()
-    while not self.get_ir(port):
-        if timeout is not None and time() - start > timeout:
-            return False
-        sleep(0.05)
-    return True
+    def wait_for_object(self, port=GP4, timeout=None):
+        """
+        Block until the light barrier detects an object. Returns False on timeout.
+        """
+        start = time()
+        while not self.get_ir(port):
+            if timeout is not None and time() - start > timeout:
+                return False
+            sleep(0.05)
+        return True
 
 # ----- Color sensor -----
-def color_enable(self, port=GP2, enable=True):
-    """
-    Enable or disable the color sensor on the given port."""
-    self.client.set_color_sensor(0, int(enable), port, 1)
+    def color_enable(self, port=GP2, enable=True):
+        """
+        Enable or disable the color sensor on the given port."""
+        self.client.set_color_sensor(0, int(enable), port, 1)
 
-def get_color(self):
-    """
-    Returns (r, g, b) as detected by the color sensor.
-    """
-    return self.client.get_color_sensor(0)
+    def get_color(self):
+        """
+        Returns (r, g, b) as detected by the color sensor.
+        """
+        return self.client.get_color_sensor(0)
 
+# ----- Jog -----
+    _JOG = {'x': (1, 2), 'y': (3, 4), 'z': (5, 6), 'r': (7, 8)}
+    def jog(self, axis, direction):
+        """
+        Perform a jog movement along the specified axis.
+        direction: +1, -1, or 0 to stop.
+        """
+        pos, neg = self._JOG[axis]
+        cmd = pos if direction > 0 else neg if direction < 0 else 0
+        self.client.set_jog_command(0, cmd)
 
-
+# ----- Laser -----
+    def laser(self, on=True, wait=True):
+        """
+        Switch the laser on or off.
+        """
+        self.client.set_end_effector_laser(True, on)
+        if wait:
+            self.wait()
 
 # ----- Shutdown -----
-def close(self):
-    """
-    Stop all motion and close the connection to the Dobot.
-    """
-    self.conveyor_stop()
-    self.client.set_end_effector_gripper(False, False)
-    self.client.set_end_effector_suction_cup(False, False)
-    self.client.close()
+    def close(self):
+        """
+        Stop all motion and close the connection to the Dobot.
+        """
+        self.conveyor_stop()
+        self.client.set_end_effector_gripper(False, False)
+        self.client.set_end_effector_suction_cup(False, False)
+        self.client.close()

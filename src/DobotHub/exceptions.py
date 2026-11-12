@@ -11,3 +11,8 @@ DobotAlarmError
 '''
 
 
+class DobotError(Exception):
+    """Base class for all DobotHub errors."""
+
+class DobotConnectionError(DobotError):
+    """Dobot not found or serial connection failed."""

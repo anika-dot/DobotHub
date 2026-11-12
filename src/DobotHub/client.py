@@ -17,7 +17,7 @@ from time import sleep
 import serial
 import threading # needed for the client to handle multiple incoming messages
 
-from message import Message
+from .message import Message
 
 
 class Client:
