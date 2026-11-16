@@ -8,7 +8,8 @@ from .parser import parsers
 
 class Message:
     """
-    Represents a message to be sent to or received from the Dobot."""
+    Represents a message to be sent to or received from the Dobot.
+    """
     def __init__(self, header, length, id, rw, is_queued, params, direction='in'):
         self.header = header
         self.length = length
@@ -27,6 +28,9 @@ class Message:
 
     @staticmethod
     def calculate_checksum(payload):
+        """
+        Calculate the checksum for a given payload.
+        """
         r = sum(payload) % 256
         # Calculate the two's complement
         check_byte = (256 - r) % 256
@@ -34,12 +38,18 @@ class Message:
 
     @staticmethod
     def verify_checksum(payload, checksum):
+        """
+        Verify the checksum for a given payload and checksum.
+        """
         a = sum(payload) % 256
         is_correct = True if (a + checksum) % 256 == 0 else False
         return is_correct
 
     @staticmethod
     def parse(message):
+        """
+        Parse a message received from the Dobot.
+        """
         bytes = list(message)
 
         header = bytes[0:2]
@@ -60,6 +70,9 @@ class Message:
 
     @staticmethod
     def read(serial):
+        """
+        Read a message from the serial port.
+        """
         header = serial.read(2)
         if header != b'\xaa\xaa':
             return None
@@ -70,6 +83,9 @@ class Message:
         return Message.parse(header + bytes([length]) + payload + checksum)
 
     def parse_params(self, direction):
+        """
+        Parse the parameters of the message based on its ID and direction.
+        """
         message_parsers = parsers[self.id]
 
         if direction == 'in':
@@ -102,6 +118,9 @@ class Message:
             return parser(self.params)
 
     def package(self):
+        """
+        Package the message to be sent to the Dobot.
+        """
         self.length = 2 + len(self.raw_params)
         control = int('000000' + str(int(self.is_queued)) + str(int(self.rw)), 2)
         self.checksum = Message.calculate_checksum([self.id] + [control] + self.raw_params)
