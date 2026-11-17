@@ -59,6 +59,25 @@ In these files the functions we use in the final script are defined. A function 
 A new function based on the existing basic functions, defined in the client.py file, can be added easily by defining it in the respective file of the component.
 
 ## 🐛 Testing
+Tests are written as `unittest.TestCase` classes and run with pytest.
+
+```bash
+pip install -e ".[dev]"        # or: uv pip install -e ".[dev]"
+pytest                         # unit tests only, no Dobot needed
+pytest --dobot                 # also run hardware tests (Dobot connected)
+pytest --dobot --port COM5     # set the port (default: env DOBOT_PORT, else auto-detect)
+pytest --dobot -m "hardware and not motion"   # hardware tests without arm movement
+pytest --dobot -m gripper      # only tests for the mounted tool / accessory
+```
+
+| Folder | Content | Dobot needed |
+|---|---|---|
+| `tests/unit/` | parser, message, client (simulated serial port), Dobot API (mocked client) | no |
+| `tests/hardware/` | 01 info (read only) → 02 params → 03 motion → 04 effectors → 05 peripherals | yes |
+
+Markers: `hardware`, `motion`, `gripper`, `suction`, `laser`, `conveyor`, `ir`, `color`.
+Safe positions for the motion tests are defined in `tests/hardware/base.py` (`SAFE_POINT`) – adapt them to your setup.
+Known bugs are marked with `xfail(strict=True)`: once a bug is fixed, the test reports `XPASS` and the marker can be removed.
 
 
 ## 📜 License 

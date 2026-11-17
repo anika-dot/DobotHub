@@ -9,3 +9,18 @@ dependencies = ["pyserial>=3.5"]
 [project.optional-dependencies]
 camera = ["opencv-python"]
 dev = ["pytest", "ruff"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+addopts = "-ra"
+markers = [
+    "hardware: braucht einen angeschlossenen Dobot (nur mit --dobot)",
+    "motion: Test bewegt den Roboterarm",
+    "gripper: braucht den montierten Greifer",
+    "suction: braucht den montierten Saugnapf",
+    "laser: braucht den montierten Laser",
+    "conveyor: braucht das Förderband",
+    "ir: braucht den IR-Sensor (Lichtschranke)",
+    "color: braucht den Farbsensor",
+]
