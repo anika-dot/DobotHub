@@ -1,11 +1,12 @@
 """
-Hardware-Tests Stufe 2: Parameter setzen -> zurücklesen -> Originalwert wiederherstellen.
-Der Arm bewegt sich nicht.
+Hardware-tests for DobotHub.
+Step 2: set parameters -> read back -> restore original values.
+The arm does not move.
 
-Gequeuete Setter werden erst wirksam, wenn der Dobot sie aus der Queue abarbeitet.
-Deshalb wird nach jedem Setzen self.bot.wait() aufgerufen.
+Queued setters only take effect when the Dobot processes them from the queue.
+Therefore, self.bot.wait() is called after each setter.
 
-Ausführen:  pytest --dobot tests/hardware/test_hw_02_params.py
+Run:  pytest --dobot tests/hardware/test_hw_02_params.py
 """
 
 import unittest
@@ -18,8 +19,8 @@ from tests.hardware.base import HardwareTestCase
 class ParamTestCase(HardwareTestCase):
     def roundtrip(self, getter, setter, new_values, set_args=None, places=3):
         """
-        Liest den Originalwert, setzt new_values, liest zurück und stellt das Original wieder her.
-        set_args: Funktion, die aus einem Werte-Tupel die Argumente für den Setter macht.
+        Reads the original value, sets new_values, reads back and restores the original.
+        set_args: function that converts a tuple of values into the arguments for the setter.
         """
         set_args = set_args or (lambda values: list(values))
         original = tuple(getter())
@@ -64,7 +65,7 @@ class TestPointToPointParams(ParamTestCase):
 
 class TestContinuousAndArcParams(ParamTestCase):
     def test_continuous_trajectory_params(self):
-        # Getter liefert (max_acc, max_junction_vel, acc, realtime_flag)
+        # Getter delivers (max_acc, max_junction_vel, acc, realtime_flag
         self.roundtrip(self.client.get_continous_trajectory_params,
                        self.client.set_continous_trajectory_params, (40.0, 30.0, 20.0, 0),
                        set_args=lambda v: list(v[:3]))

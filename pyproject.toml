@@ -15,12 +15,12 @@ testpaths = ["tests"]
 pythonpath = ["src", "."]
 addopts = "-ra"
 markers = [
-    "hardware: braucht einen angeschlossenen Dobot (nur mit --dobot)",
-    "motion: Test bewegt den Roboterarm",
-    "gripper: braucht den montierten Greifer",
-    "suction: braucht den montierten Saugnapf",
-    "laser: braucht den montierten Laser",
-    "conveyor: braucht das Förderband",
-    "ir: braucht den IR-Sensor (Lichtschranke)",
-    "color: braucht den Farbsensor",
+    "hardware: Requires a connected Dobot (only with --dobot)",
+    "motion: Test moves the robot arm",
+    "gripper: Requires the gripper to be mounted",
+    "suction: Requires the suction to be mounted",
+    "laser: Requires the laser to be mounted",
+    "conveyor: Requires the conveyor belt",
+    "ir: Requires the IR-Sensor (light barrier)",
+    "color: Requires the color sensor",
 ]

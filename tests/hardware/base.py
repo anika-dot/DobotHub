@@ -1,11 +1,12 @@
 """
-Basis für Hardware-Tests.
+Basis for hardware tests.
 
-Alle Hardware-Tests teilen sich EINE Verbindung zum Dobot (Aufbau inkl. Queue-Reset dauert
-und der COM-Port lässt sich unter Windows nicht beliebig schnell neu öffnen).
-Die Verbindung wird am Ende der pytest-Session in conftest.py geschlossen.
+All hardware tests share ONE connection to the Dobot (setup including queue reset takes time
+and the COM port cannot be reopened arbitrarily fast under Windows).
 
-Port-Reihenfolge: --port  >  Umgebungsvariable DOBOT_PORT  >  find_port() (Auto-Erkennung per USB-VID)
+The connection is closed at the end of the pytest session in conftest.py.
+
+Port order: --port  >  Environment variable DOBOT_PORT  >  find_port()
 """
 
 import unittest
@@ -13,18 +14,22 @@ import unittest
 from DobotHub.dobot import Dobot, find_port
 from DobotHub.types import MODE_PTP
 
-PORT = None          # wird in conftest.pytest_configure gesetzt
+PORT = None          # is set in conftest.pytest_configure
 _bot = None
 
-# Sichere Positionen im Arbeitsbereich (mm). An den eigenen Aufbau anpassen!
+# Safe positions within the work area (mm). Adjust to your own setup!
 SAFE_POINT = (200.0, 0.0, 50.0, 0.0)
 SAFE_POINT_2 = (220.0, 40.0, 60.0, 0.0)
 
 POSITION_TOLERANCE = 2.0   # mm
-ANGLE_TOLERANCE = 1.0      # Grad
+ANGLE_TOLERANCE = 1.0      # Degree
 
 
 def connect():
+    """
+    Connects to the Dobot and returns a Dobot instance. 
+    If already connected, returns the existing instance.
+    """
     global _bot
     if _bot is None:
         _bot = Dobot(PORT or find_port())
@@ -32,6 +37,9 @@ def connect():
 
 
 def disconnect():
+    """
+    Disconnects from the Dobot and closes the connection.
+    """
     global _bot
     if _bot is not None:
         try:
@@ -41,19 +49,25 @@ def disconnect():
 
 
 class HardwareTestCase(unittest.TestCase):
-    """Basisklasse: stellt `self.bot` (Dobot) und `self.client` (Client) bereit."""
+    """
+    Base class for hardware tests. Provides `self.bot` (Dobot) and `self.client` (Client).
+    """
 
     @classmethod
     def setUpClass(cls):
         cls.bot = connect()
         cls.client = cls.bot.client
 
-    # --- Hilfsfunktionen ---
+    # --- Helper functions
     def go_safe(self, point=SAFE_POINT):
-        """Fährt eine sichere Position im kartesischen Modus an."""
+        """
+        Drives the robot to a safe position in Cartesian mode.
+        """
         self.bot.move_to(*point, mode=MODE_PTP.MOVJ_XYZ)
 
     def assertPositionAlmostEqual(self, actual, expected, delta=POSITION_TOLERANCE):
-        """Vergleicht (x, y, z, r) mit Toleranz."""
+        """
+        Compares (x, y, z) with tolerance.
+        """
         for name, a, e in zip("xyzr", actual, expected):
             self.assertAlmostEqual(a, e, delta=delta, msg=f"Achse {name}: {a:.2f} != {e:.2f}")

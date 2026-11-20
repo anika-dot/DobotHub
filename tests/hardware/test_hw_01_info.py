@@ -1,7 +1,8 @@
 """
-Hardware-Tests Stufe 1: nur lesen. Der Arm bewegt sich nicht, es wird nichts verändert.
+Hardware-tests for DobotHub. 
+Step 1: read-only. The arm does not move, nothing is changed.
 
-Ausführen:  pytest --dobot tests/hardware/test_hw_01_info.py
+Run:  pytest --dobot tests/hardware/test_hw_01_info.py
 """
 
 import struct

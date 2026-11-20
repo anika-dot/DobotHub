@@ -1,12 +1,14 @@
 """
-Hardware-Tests Stufe 3: Bewegung.
+Hardware-tests for DobotHub.
+Step 3: motion. The arm moves.
 
-ACHTUNG: Der Arm bewegt sich! Arbeitsbereich freihalten.
-Die angefahrenen Punkte stehen in tests/hardware/base.py (SAFE_POINT, SAFE_POINT_2)
-und müssen zum eigenen Aufbau passen.
+WARNING: The arm moves! Keep the workspace clear.
+The points to be reached are defined in tests/hardware/base.py (SAFE_POINT, SAFE_POINT_2)
+and must be adapted to your own setup.
 
-Ausführen:          pytest --dobot tests/hardware/test_hw_03_motion.py
-Ohne Bewegung:      pytest --dobot -m "not motion"
+Run:  pytest --dobot tests/hardware/test_hw_03_motion.py
+Without motion:  pytest --dobot -m "not motion"
+
 """
 
 import time
@@ -67,7 +69,7 @@ class TestRelativeMotion(MotionTestCase):
         self.assertPositionAlmostEqual(end, (start.x, start.y, start.z + 10, start.r))
 
     def test_slide_to_relative_moves_joint(self):
-        # MOVJ_INC: Werte sind Gelenk-Inkremente (Grad), nicht mm
+        # MOVJ_INC: values are joint increments (degrees), not mm
         start = self.bot.get_pose_named().joints
         self.bot.slide_to_relative(5, 0, 0, 0)
         end = self.bot.get_pose_named().joints
@@ -98,7 +100,7 @@ class TestJog(MotionTestCase):
         after_stop = self.position()
         self.assertGreater(after_stop.z, start.z + 1)
 
-        time.sleep(0.5)                      # nach dem Stopp darf sich nichts mehr bewegen
+        time.sleep(0.5)                      # after stop, nothing should move anymore
         self.assertAlmostEqual(self.position().z, after_stop.z, delta=0.5)
 
 

@@ -1,9 +1,9 @@
 """
-Unit-Tests für client.py mit simulierter serieller Schnittstelle (FakeSerial).
+Unit-Tests for client.py with a simulated serial interface (FakeSerial).
 
-Geprüft wird pro Methode:
-- welches Paket gesendet wird (ID, rw-Bit, queued-Bit, Parameter-Bytes)
-- wie die Antwort des Dobot in einen Rückgabewert übersetzt wird
+Each method is tested for:
+- which packet is sent (ID, rw-bit, queued-bit, parameter bytes)
+- how the Dobot's response is translated into a return value
 """
 
 import struct
@@ -19,36 +19,39 @@ from tests.helpers import Frame, FakeSerial, floats, frame, uint64
 
 
 def B(*values):
+    """
+    Converts a list of integers (0-255) into a list of bytes (as sent
+    by the Dobot). Used for boolean flags and small integers.
+    """
     return list(values)
 
-
-# (Methode, Argumente, erwartetes Paket)
+# --- Method, Argument, Expected Packet (Frame)
 REQUEST_CASES = [
-    # Geräteinformation
+    # device information
     ("get_device_serial_number", (), Frame(0, False, False, [])),
     ("get_device_name", (), Frame(1, False, False, [])),
     ("set_device_name", ("Dobot",), Frame(1, True, False, list(b"Dobot\x00"))),
     ("get_device_version", (), Frame(2, False, False, [])),
     ("get_device_time", (), Frame(4, False, False, [])),
     ("get_device_id", (), Frame(5, False, False, [])),
-    # Pose
+    # pose
     ("get_pose", (), Frame(10, False, False, [])),
     ("reset_pose", (1, 10.0, 20.0), Frame(11, True, False, list(struct.pack("<Bff", 1, 10, 20)))),
-    # Alarme
+    # alarm
     ("get_alarms_state", (), Frame(20, False, False, [])),
     ("clear_alarms_state", (), Frame(21, True, False, [])),
-    # Homing
+    # homing
     ("get_homing_paramaters", (), Frame(30, False, False, [])),
     ("set_homing_parameters", (200, 0, 50, 0), Frame(30, True, True, floats(200, 0, 50, 0))),
     ("set_homing_command", (0,), Frame(31, True, True, floats(0))),
     ("home", (), Frame(31, True, True, floats(0))),
-    # Endeffektoren
+    # end effector parameters
     ("get_end_effector_gripper", (), Frame(63, False, False, [])),
     ("set_end_effector_gripper", (True, True), Frame(63, True, True, B(1, 1))),
     ("set_end_effector_gripper", (True, False), Frame(63, True, True, B(1, 0))),
     ("set_end_effector_suction_cup", (True, True), Frame(62, True, True, B(1, 1))),
     ("set_end_effector_laser", (True, False), Frame(61, True, True, B(1, 0))),
-    # Jog
+    # jog
     ("set_jog_common_params", (50, 50), Frame(72, True, True, floats(50, 50))),
     ("set_jog_command", (0, 1), Frame(73, True, True, B(0, 1))),
     ("set_jog_joint_params", ([1, 2, 3, 4], [5, 6, 7, 8]), Frame(70, True, True, floats(1, 2, 3, 4, 5, 6, 7, 8))),
@@ -79,7 +82,7 @@ REQUEST_CASES = [
     ("set_color_sensor", (0, 1, 1, 1), Frame(137, True, True, B(1, 1, 1))),
     ("set_ir_switch", (0, 1, GP4, 1), Frame(138, True, True, B(1, GP4, 1))),
     ("get_ir_switch", (GP4,), Frame(138, False, False, B(GP4))),
-    # Queue-Steuerung
+    # queue control
     ("start_queue", (), Frame(240, True, False, [])),
     ("stop_queue", (), Frame(241, True, False, [])),
     ("stop_queue", (True,), Frame(242, True, False, [])),
@@ -90,7 +93,9 @@ REQUEST_CASES = [
 
 
 class ClientTestCase(unittest.TestCase):
-    """Basisklasse: ersetzt serial.Serial durch FakeSerial."""
+    """
+    Base class for Client tests. Sets up a FakeSerial and a Client instance.
+    """
 
     def setUp(self):
         self.fake = FakeSerial()
@@ -101,82 +106,137 @@ class ClientTestCase(unittest.TestCase):
 
 
 class TestConnection(ClientTestCase):
+    """
+    Tests for the connection functionality of the Client.
+    """
     def test_opens_port_with_dobot_settings(self):
+        """
+        Checks that the Client opens the serial port with the correct settings for the Dobot.
+        """
         kwargs = self.serial_cls.call_args.kwargs
         self.assertEqual(kwargs["port"], "COM_TEST")
         self.assertEqual(kwargs["baudrate"], 115200)
 
     def test_connected_and_close(self):
+        """
+        Tests that the Client reports being connected and can be closed.
+        """
         self.assertTrue(self.client.connected())
         self.client.close()
         self.assertFalse(self.client.connected())
 
     def test_close_twice_is_safe(self):
+        """
+        Tests that calling close() on the Client twice does not raise an exception.
+        """
         self.client.close()
         self.client.close()
 
 
 class TestRequests(ClientTestCase):
+    """
+    Tests that Client methods send the expected frames to the Dobot.
+    """
     def test_methods_send_expected_frames(self):
+        """
+        For each method in REQUEST_CASES, calls the method with the given arguments
+        and checks that the last request sent matches the expected Frame.
+        """
         for name, args, expected in REQUEST_CASES:
             with self.subTest(method=name, args=args):
-                # pro Fall frischer Client: ein Fehler beim Parsen der (leeren) Fake-Antwort
-                # darf die übrigen Fälle nicht beeinflussen (siehe test_lock_released_on_error)
+                # for each case, create a fresh Client to avoid interference from previous calls
+                # a parsing error in the (empty) Fake response should not affect other cases
                 self.setUp()
                 try:
                     getattr(self.client, name)(*args)
                 except (struct.error, IndexError):
-                    pass   # hier wird nur die gesendete Anfrage geprüft, nicht die Antwort
-                self.assertEqual(len(self.fake.requests), 1, "genau ein Paket erwartet")
+                    pass   # Here, only the sent request is checked, not the response.
+                self.assertEqual(len(self.fake.requests), 1, "exactly one packet expected")
                 self.assertEqual(self.fake.last, expected)
 
     def test_raw_frame_of_get_pose(self):
+        """
+        Tests that get_pose() sends the correct raw frame to the Dobot.
+        """
         self.fake.responses[10] = floats(*[0] * 8)
         self.client.get_pose()
         self.assertEqual(self.fake.written, bytes([0xAA, 0xAA, 0x02, 0x0A, 0x00, 0xF6]))
 
     def test_send_holds_lock_only_during_call(self):
+        """
+        Tests that the Client's lock is held only during the send() call and is released afterwards.
+        """
         self.fake.responses[246] = uint64(1)
         self.client.get_current_queue_index()
         self.assertFalse(self.client.lock.locked())
 
 
 class TestResponses(ClientTestCase):
+    """
+    Tests that Client methods correctly interpret the responses from the Dobot.
+    """
     def test_get_device_name(self):
+        """
+        Tests that get_device_name() returns the correct device name.
+        """
         self.fake.responses[1] = list(b"Dobot")
         self.assertEqual(self.client.get_device_name(), "Dobot")
 
     def test_get_pose(self):
+        """
+        Tests that get_pose() returns the correct pose.
+        """
         pose = (200.0, 0.0, 50.0, 0.0, 0.0, 45.0, 45.0, 0.0)
         self.fake.responses[10] = floats(*pose)
         self.assertEqual(self.client.get_pose(), pose)
 
     def test_get_device_version(self):
+        """
+        Tests that get_device_version() returns the correct device version.
+        """
         self.fake.responses[2] = [3, 7, 0]
         self.assertEqual(self.client.get_device_version(), [3, 7, 0])
 
     def test_queued_command_returns_queue_index(self):
+        """
+        Tests that queued commands return the correct queue index.
+        """
         self.fake.queue_index = 17
         self.assertEqual(self.client.set_point_to_point_command(1, 200, 0, 50, 0), 17)
         self.assertEqual(self.client.wait(0), 18)
 
     def test_get_current_queue_index(self):
+        """
+        Tests that get_current_queue_index() returns the correct queue index.
+        """
         self.fake.responses[246] = uint64(99)
         self.assertEqual(self.client.get_current_queue_index(), 99)
 
     def test_get_ir_state(self):
+        """
+        Tests that get_ir_state() returns the correct state of the IR sensor.
+        """
         self.fake.responses[138] = [1]
         self.assertTrue(self.client.get_ir_state(GP4))
         self.fake.responses[138] = [0]
         self.assertFalse(self.client.get_ir_state(GP4))
 
     def test_get_homing_parameters(self):
+        """
+        Tests that get_homing_parameters() returns the correct homing parameters.
+        """
         self.fake.responses[30] = floats(200, 0, 50, 0)
         self.assertEqual(self.client.get_homing_paramaters(), (200, 0, 50, 0))
 
 
 class TestConveyorConversion(ClientTestCase):
+    """
+    Tests the conversion from mm/s to pulses for the conveyor speed.
+    """
     def test_mm_per_second_to_pulses(self):
+        """
+        Tests that set_conveyor_speed() correctly converts mm/s to pulses and calls set_extended_motor
+        """
         with patch.object(self.client, "set_extended_motor_velocity") as motor:
             self.client.set_conveyor_speed(50)
         pulses = 50 * (360.0 / 1.8 * 10.0 * 16.0) / (3.1415926535898 * 36.0)
@@ -186,30 +246,45 @@ class TestConveyorConversion(ClientTestCase):
         self.assertAlmostEqual(value, pulses, places=6)
 
     def test_negative_speed_reverses(self):
+        """
+        Tests that set_conveyor_speed() correctly handles negative speeds by reversing the direction.
+        """
         with patch.object(self.client, "set_extended_motor_velocity") as motor:
             self.client.set_conveyor_speed(-50, index=1)
         self.assertLess(motor.call_args.args[2], 0)
         self.assertEqual(motor.call_args.args[0], 1)
 
     def test_zero_speed_stops(self):
+        """
+        Tests that set_conveyor_speed() correctly handles zero speed by stopping the motor.
+        """
         with patch.object(self.client, "set_extended_motor_velocity") as motor:
             self.client.set_conveyor_speed(0)
         self.assertEqual(motor.call_args.args[2], 0)
 
 
 class TestWaitUntilDone(ClientTestCase):
+    """
+    Tests the wait_until_done() method of the Client.
+    """
     @patch("DobotHub.client.sleep")
     def test_waits_until_target_index_reached(self, sleep):
+        """
+        Tests that wait_until_done() waits until the target queue index is reached.
+        """
         with patch.object(self.client, "get_current_queue_index", side_effect=[3, 4, 5]) as idx:
             self.client.wait_until_done(5)
         self.assertEqual(idx.call_count, 3)
 
 
 class TestKnownBugs(ClientTestCase):
-    @pytest.mark.xfail(strict=True, reason="send() gibt den Lock bei einer Exception nicht frei "
-                                           "-> jeder weitere Aufruf blockiert für immer (with self.lock: verwenden)")
+    """
+    Tests for known bugs in the Client implementation.
+    """
+    @pytest.mark.xfail(strict=True, reason="send() does not release the lock when an exception occurs "
+                                           "-> Any subsequent call will be blocked indefinitely (use `with self.lock:`)")
     def test_lock_released_on_error(self):
-        self.fake.responses[10] = floats(1, 2, 3)   # zu kurze Pose -> struct.error beim Parsen in send()
+        self.fake.responses[10] = floats(1, 2, 3)   # Pose too short -> struct.error during parsing in send()
         with self.assertRaises(struct.error):
             self.client.get_pose()
         self.assertFalse(self.client.lock.locked())
