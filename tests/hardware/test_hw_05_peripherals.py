@@ -1,13 +1,14 @@
 """
-Hardware-Tests Stufe 5: Peripherie (Förderband, IR-Sensor, Farbsensor).
+Hardware-tests for DobotHub.
+Step 5: peripherals (conveyor belt, IR sensor, color sensor).
 
-Ports laut Default der API: IR-Sensor an GP4, Farbsensor an GP2, Förderband an Stepper 1 (index 0).
-Nur angeschlossenes Zubehör testen, z. B.:
+Default ports of the API: IR sensor on GP4, color sensor on GP2, conveyor on stepper 1 (index 0).
+Only test connected accessories, e.g.:
     pytest --dobot -m conveyor
     pytest --dobot -m "ir or color"
 
-Ob sich das Förderband tatsächlich bewegt, kann der Test nicht messen -> kurz hinschauen.
-Mit Förderband UND Lichtschranke prüft test_object_reaches_light_barrier den ganzen Ablauf.
+The test cannot measure whether the conveyor actually moves -> have a look.
+With conveyor AND light barrier, test_object_reaches_light_barrier checks the whole sequence.
 """
 
 import struct
@@ -21,20 +22,26 @@ from tests.hardware.base import HardwareTestCase
 
 @pytest.mark.conveyor
 class TestConveyor(HardwareTestCase):
+    """Conveyor belt."""
+
     def tearDown(self):
+        """Stops the conveyor after each test."""
         self.bot.conveyor_stop()
 
     def test_run_and_stop(self):
+        """The conveyor runs forward and stops without error."""
         self.bot.conveyor(30)
         time.sleep(1.0)
         self.bot.conveyor_stop()
 
     def test_reverse(self):
+        """The conveyor runs backwards and stops without error."""
         self.bot.conveyor(-30)
         time.sleep(1.0)
         self.bot.conveyor_stop()
 
     def test_distance_blocks_for_expected_time(self):
+        """conveyor_distance() blocks for distance / speed seconds."""
         start = time.monotonic()
         self.bot.conveyor_distance(30, speed=30)
         self.assertAlmostEqual(time.monotonic() - start, 1.0, delta=0.3)
@@ -42,22 +49,28 @@ class TestConveyor(HardwareTestCase):
 
 @pytest.mark.ir
 class TestIrSensor(HardwareTestCase):
+    """IR sensor (light barrier)."""
+
     @classmethod
     def setUpClass(cls):
+        """Connects and enables the IR sensor."""
         super().setUpClass()
         cls.bot.ir_enable()
         time.sleep(0.2)
 
     @classmethod
     def tearDownClass(cls):
+        """Disables the IR sensor."""
         cls.bot.ir_enable(enable=False)
 
     def test_get_ir_returns_bool(self):
+        """get_ir() returns a bool."""
         self.assertIsInstance(self.bot.get_ir(), bool)
 
     def test_wait_for_object_times_out_without_object(self):
+        """wait_for_object() returns False after the timeout if nothing is detected."""
         if self.bot.get_ir():
-            self.skipTest("Lichtschranke ist gerade unterbrochen")
+            self.skipTest("Light barrier is currently interrupted")
         start = time.monotonic()
         self.assertFalse(self.bot.wait_for_object(timeout=0.5))
         self.assertLess(time.monotonic() - start, 1.5)
@@ -66,35 +79,42 @@ class TestIrSensor(HardwareTestCase):
 @pytest.mark.conveyor
 @pytest.mark.ir
 class TestConveyorWithLightBarrier(HardwareTestCase):
-    """Ein Objekt vor die Lichtschranke aufs Band legen, dann Test starten."""
+    """Put an object on the belt before the light barrier, then start the test."""
 
     def tearDown(self):
+        """Stops the conveyor after the test."""
         self.bot.conveyor_stop()
 
     def test_object_reaches_light_barrier(self):
+        """An object on the running belt is detected by the light barrier."""
         self.bot.ir_enable()
         self.bot.conveyor(30)
         detected = self.bot.wait_for_object(timeout=15)
         self.bot.conveyor_stop()
         if not detected:
-            self.skipTest("Kein Objekt erkannt - liegt eines auf dem Band?")
+            self.skipTest("No object detected - is there one on the belt?")
         self.assertTrue(self.bot.get_ir())
 
 
 @pytest.mark.color
 class TestColorSensor(HardwareTestCase):
+    """Color sensor."""
+
     @classmethod
     def setUpClass(cls):
+        """Connects and enables the color sensor."""
         super().setUpClass()
         cls.bot.color_enable()
         time.sleep(0.2)
 
     @classmethod
     def tearDownClass(cls):
+        """Disables the color sensor."""
         cls.bot.color_enable(enable=False)
 
-    @pytest.mark.xfail(strict=True, raises=struct.error, reason="Parser ID 137 Format '<B' * 3")
+    @pytest.mark.xfail(strict=True, raises=struct.error, reason="Parser ID 137 format '<B' * 3")
     def test_get_color(self):
+        """get_color() returns three values (r, g, b)."""
         color = self.bot.get_color()
         self.assertEqual(len(color), 3)
 

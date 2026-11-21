@@ -2,14 +2,47 @@
 DobotHub standardization of python library for usage of Dobot Magician and additional components.
 
 ## ✨ Features
-
+- Serial communication with the Dobot Magician based on the Communication Protocol V1.1.5
+- Automatic port detection (`find_port()`)
+- Motion: homing, absolute and relative point-to-point moves, path following, jog, speed settings
+- End effectors: gripper, suction cup, laser
+- Peripherals: conveyor belt (speed in mm/s, move by distance), IR sensor (light barrier), color sensor
+- Alarm handling
+- Test suite with unit tests (no hardware) and hardware tests
 
 ## 🏗️ Project structure
+```
+DobotHub/
+├── src/DobotHub/
+│   ├── dobot.py        # user-facing API (Dobot class, find_port)
+│   ├── client.py       # one method per protocol command
+│   ├── message.py      # packet framing and checksum
+│   ├── parser.py       # byte <-> Python conversion per message ID
+│   ├── types.py        # Position, Joints, Pose, MODE_PTP, sensor ports
+│   └── exceptions.py   # DobotError, DobotConnectionError
+├── tests/
+│   ├── unit/           # tests without hardware
+│   └── hardware/       # tests with a connected Dobot (--dobot)
+├── CHANGELOG.md        # documented changes
+└── pyproject.toml
+```
 
 ## 📦 Getting started
 ### 🚀 Prerequisites
+- Python >= 3.10
+- [pyserial](https://pypi.org/project/pyserial/) >= 3.5 (installed automatically)
+- Dobot Magician with USB cable; on Windows the USB serial driver of the Dobot must be installed
+- Optional for development: `pytest`, `ruff` (`pip install -e ".[dev]"`)
 
 ### 🔌 Hardware setup
+- Connect the Dobot via USB. The port is detected automatically, or pass it explicitly, e.g. `Dobot("COM5")`.
+- Default sensor ports used by the API (`types.py`):
+
+| Accessory | Port / index |
+|---|---|
+| IR sensor (light barrier) | `GP4` |
+| Color sensor | `GP2` |
+| Conveyor belt | stepper 1 (`index=0`) |
 
 ## 📖 Usage
 ### 1. Install the repository
@@ -78,7 +111,7 @@ pytest --dobot -m gripper      # only tests for the mounted tool / accessory
 Markers: `hardware`, `motion`, `gripper`, `suction`, `laser`, `conveyor`, `ir`, `color`.
 Safe positions for the motion tests are defined in `tests/hardware/base.py` (`SAFE_POINT`) – adapt them to your setup.
 Known bugs are marked with `xfail(strict=True)`: once a bug is fixed, the test reports `XPASS` and the marker can be removed.
-
+The list of known issues is kept in [CHANGELOG.md](CHANGELOG.md).
 
 ## 📜 License 
 DobotHub based on [dobot-python](https://github.com/AlexGustafsson/dobot-python)

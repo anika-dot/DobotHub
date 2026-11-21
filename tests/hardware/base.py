@@ -70,4 +70,4 @@ class HardwareTestCase(unittest.TestCase):
         Compares (x, y, z) with tolerance.
         """
         for name, a, e in zip("xyzr", actual, expected):
-            self.assertAlmostEqual(a, e, delta=delta, msg=f"Achse {name}: {a:.2f} != {e:.2f}")
+            self.assertAlmostEqual(a, e, delta=delta, msg=f"axis {name}: {a:.2f} != {e:.2f}")

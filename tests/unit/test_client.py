@@ -284,48 +284,56 @@ class TestKnownBugs(ClientTestCase):
     @pytest.mark.xfail(strict=True, reason="send() does not release the lock when an exception occurs "
                                            "-> Any subsequent call will be blocked indefinitely (use `with self.lock:`)")
     def test_lock_released_on_error(self):
+        """The lock is released even if parsing the response fails."""
         self.fake.responses[10] = floats(1, 2, 3)   # Pose too short -> struct.error during parsing in send()
         with self.assertRaises(struct.error):
             self.client.get_pose()
         self.assertFalse(self.client.lock.locked())
 
-    @pytest.mark.xfail(strict=True, reason="Message.read liefert None -> send() wirft AttributeError statt DobotError")
+    @pytest.mark.xfail(strict=True, reason="Message.read returns None -> send() raises AttributeError instead of DobotError")
     def test_invalid_response_raises_dobot_error(self):
+        """A response with a wrong header raises a DobotError."""
         self.fake.auto_respond = False
         self.fake.queue(b"\x00\x00\x00")
         with self.assertRaises(DobotError):
             self.client.get_pose()
 
-    @pytest.mark.xfail(strict=True, reason="Message.read liefert None bei Timeout -> AttributeError statt DobotError")
+    @pytest.mark.xfail(strict=True, reason="Message.read returns None on timeout -> AttributeError instead of DobotError")
     def test_timeout_raises_dobot_error(self):
+        """A missing response (timeout) raises a DobotError."""
         self.fake.auto_respond = False
         with self.assertRaises(DobotError):
             self.client.get_pose()
 
-    @pytest.mark.xfail(strict=True, raises=struct.error, reason="Parser ID 60 packt 4 Floats, Methode übergibt 3")
+    @pytest.mark.xfail(strict=True, raises=struct.error, reason="Parser ID 60 packs 4 floats, method passes 3")
     def test_set_end_effector_params(self):
+        """set_end_effector_params() sends the three offsets as floats."""
         self.client.set_end_effector_params(1.0, 2.0, 3.0)
         self.assertEqual(self.fake.last, Frame(60, True, False, floats(1, 2, 3)))
 
     @pytest.mark.xfail(strict=True, raises=struct.error,
-                       reason="Parser ID 89 erwartet 6 Werte (Bfffff), Methode übergibt 3")
+                       reason="Parser ID 89 expects 6 values (Bfffff), method passes 3")
     def test_set_point_to_point_sliding_rail_po_command(self):
+        """set_point_to_point_sliding_rail_po_command() can be sent."""
         self.client.set_point_to_point_sliding_rail_po_command(50, 1, 1)
 
-    @pytest.mark.xfail(strict=True, raises=struct.error, reason="Parser ID 137 Format '<B' * 3")
+    @pytest.mark.xfail(strict=True, raises=struct.error, reason="Parser ID 137 format '<B' * 3")
     def test_get_color_sensor(self):
+        """get_color_sensor() returns (r, g, b)."""
         self.fake.responses[137] = [10, 20, 30]
         self.assertEqual(self.client.get_color_sensor(0), (10, 20, 30))
 
-    @pytest.mark.xfail(strict=True, raises=struct.error, reason="Parser ID 20 Format '<B' * 16")
+    @pytest.mark.xfail(strict=True, raises=struct.error, reason="Parser ID 20 format '<B' * 16")
     def test_get_alarms_state(self):
+        """get_alarms_state() can parse the 16-byte alarm response."""
         self.fake.responses[20] = [0] * 16
         self.client.get_alarms_state()
 
     @pytest.mark.xfail(strict=True, raises=IndexError,
-                       reason="Antwort auf nicht gequeueten Setter (rw=1, queued=0) wird mit Getter-Parser gelesen; "
-                              "die Antwort hat keine Params -> x[0] schlägt fehl")
+                       reason="Response to a non-queued setter (rw=1, queued=0) is read with the getter parser; "
+                              "the response has no params -> x[0] fails")
     def test_non_queued_setter_with_empty_response(self):
+        """A non-queued setter with an empty response does not fail."""
         self.client.set_handheld_teaching_mode(1)
 
 
