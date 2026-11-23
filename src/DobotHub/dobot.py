@@ -136,20 +136,12 @@ class Dobot:
 # ----- Waiting -----
     def wait(self, queue_index=None):
         """
-        Wait until the instruction finishes.
-        If queue_index is None, wait until the current instruction finishes.
-        If queue_index is given, wait until the instruction with that index finishes.
-        Use a zero wait as a non-operation to bypass the limitation
+        Added. Block until all queued commands (incl. queue_index) are finished.
+        Queues a zero wait as marker and polls until the Dobot has reached its index.
         """
-        self.client.wait(0)
-
-        if queue_index is None:
-            queue_index = self.client.get_current_queue_index()
-        while True:
-            if self.client.get_current_queue_index() > queue_index:
-                break
-
-            sleep(0.5)
+        marker = self.client.wait(0)          # no-op at the end of the queue
+        while self.client.get_current_queue_index() < marker:
+            sleep(0.1)
 
 # ----- Path Following -----
     def follow_path(self, path, wait=True):

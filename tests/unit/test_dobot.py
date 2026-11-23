@@ -123,16 +123,26 @@ class TestPose(DobotTestCase):
 class TestWait(DobotTestCase):
     """Waiting for queued commands."""
 
-    def test_waits_until_index_passed(self):
-        """wait() polls until the queue index is higher than at the start."""
+    def test_waits_until_marker_reached(self):
+        """wait() queues a zero wait and polls until its index is reached."""
+        self.client.wait.return_value = 11
         self.client.get_current_queue_index.side_effect = [10, 10, 11]
         self.bot.wait()
         self.client.wait.assert_called_once_with(0)
         self.assertEqual(self.client.get_current_queue_index.call_count, 3)
-        self.assertEqual(self.sleep.call_count, 1)
+        self.assertEqual(self.sleep.call_count, 2)
+
+    def test_returns_when_queue_already_done(self):
+        """wait() returns at once if the Dobot is already at the marker (idle queue)."""
+        self.client.wait.return_value = 7
+        self.client.get_current_queue_index.return_value = 7
+        self.bot.wait()
+        self.assertEqual(self.client.get_current_queue_index.call_count, 1)
+        self.sleep.assert_not_called()
 
     def test_waits_for_given_index(self):
-        """wait(index) polls until the given index has been passed."""
+        """wait(index) also waits for the marker queued after that index."""
+        self.client.wait.return_value = 6
         self.client.get_current_queue_index.side_effect = [3, 4, 5, 6]
         self.bot.wait(5)
         self.assertEqual(self.client.get_current_queue_index.call_count, 4)

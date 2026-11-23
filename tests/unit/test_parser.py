@@ -36,6 +36,9 @@ GETTER_CASES = {
     41: ([1], True),
     42: ([0], False),
     60: (floats(1.0, 2.0, 3.0), (1.0, 2.0, 3.0)),
+    61: ([1, 1], (True, True)),
+    62: ([1, 0], (True, False)),
+    63: ([1, 1], (True, True)),
     70: (floats(*F8), F8),
     71: (floats(*F8), F8),
     72: (floats(50.0, 60.0), (50.0, 60.0)),
@@ -110,7 +113,7 @@ SETTER_CASES = {
     130: ([1, 2], [1, 2]),
     131: ([1, 1], [1, 1]),
     132: ([1, 10.0, 50.0], list(struct.pack("<Bff", 1, 10, 50))),
-    135: ([0, 1, 1000.0], list(struct.pack("<BBf", 0, 1, 1000))),
+    135: ([0, 1, -1000], list(struct.pack("<BBi", 0, 1, -1000))),
     137: ([1, 1, 1], [1, 1, 1]),
     138: ([1, 2, 1], [1, 2, 1]),
     140: ([0.5, -0.5], floats(0.5, -0.5)),
@@ -147,8 +150,7 @@ class TestParserTable(unittest.TestCase):
     def test_all_getter_ids_are_covered_by_tests(self):
         """Every ID with a getter parser has a test case."""
         getter_ids = {i for i, p in parsers.items() if p[0] is not None}
-        # 61-63 (end effector state) are checked in the hardware tests, as the format is unclear
-        covered = set(GETTER_CASES) | set(BROKEN_GETTERS) | {61, 62, 63}
+        covered = set(GETTER_CASES) | set(BROKEN_GETTERS)
         self.assertEqual(getter_ids - covered, set())
 
 

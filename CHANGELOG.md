@@ -22,6 +22,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `client.py`: `get_ir_switch()` takes `port` instead of `index` and sends it as payload.
 - Code comments and docstrings translated to English.
 
+### Fixed
+- `client.py`: `send()` releases the lock if parsing fails (`with self.lock:`); before, all further calls blocked.
+- `dobot.py`: `wait()` looped forever on an idle queue (compared with `>` against the current index); now queues `wait(0)` as marker and polls until it is reached.
+- `parser.py`: getters for IDs 61-63 (laser, suction cup, gripper state) checked `x[1] == 2`, now `== 1`; `get_end_effector_gripper()` reported grip off after `gripper_close()`.
+- `parser.py` / `client.py`: ID 135 (`set_extended_motor_velocity()`) sends speed as int32 instead of float, as in the official Dobot DLL (protocol PDF says float); conveyor did not move.
+- `tests/hardware/test_hw_03_motion.py`: jog test waits until the arm has finished decelerating instead of a fixed 0.3 s (arm kept moving ~1 mm after the stop command).
+
 ### Removed
 - `tests/test_protocol.py` (empty, replaced by `tests/unit/`).
 
@@ -30,7 +37,6 @@ Found by the test suite, marked as `xfail(strict=True)` until fixed:
 - `parser.py`: struct format `'<B' * n` instead of `'<' + 'B' * n` for IDs 20, 130, 131, 133, 137, 153-156 and 243 -> `struct.error` (e.g. `get_alarms()`, `get_io_di()`, `get_color()`).
 - `parser.py`: ID 60 packs 4 floats, `set_end_effector_params()` passes 3.
 - `parser.py`: ID 89 expects 6 values, `set_point_to_point_sliding_rail_po_command()` passes 3.
-- `client.py`: `send()` does not release the lock if parsing fails -> all further calls block.
 - `client.py`: invalid or missing response raises `AttributeError` instead of a `DobotError`.
 - `message.py`: response to a non-queued setter is parsed with the getter parser -> `IndexError` on empty response.
 - `dobot.py`: default mode of `move_to()` (3 = `JUMP_ANGLE`) and `slide_to()` (4 = `MOVJ_ANGLE`) interpret x, y, z as joint angles (to check).

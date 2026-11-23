@@ -78,7 +78,7 @@ REQUEST_CASES = [
     ("set_trigger_command", (1, 0, 2, 1000), Frame(120, True, True, list(struct.pack("<BBBH", 1, 0, 2, 1000)))),
     # IO / Peripherie
     ("set_io_do", (2, 1), Frame(131, True, True, B(2, 1))),
-    ("set_extended_motor_velocity", (0, True, 1000), Frame(135, True, True, list(struct.pack("<BBf", 0, 1, 1000)))),
+    ("set_extended_motor_velocity", (0, True, 1000), Frame(135, True, True, list(struct.pack("<BBi", 0, 1, 1000)))),
     ("set_color_sensor", (0, 1, 1, 1), Frame(137, True, True, B(1, 1, 1))),
     ("set_ir_switch", (0, 1, GP4, 1), Frame(138, True, True, B(1, GP4, 1))),
     ("get_ir_switch", (GP4,), Frame(138, False, False, B(GP4))),
@@ -239,11 +239,12 @@ class TestConveyorConversion(ClientTestCase):
         """
         with patch.object(self.client, "set_extended_motor_velocity") as motor:
             self.client.set_conveyor_speed(50)
-        pulses = 50 * (360.0 / 1.8 * 10.0 * 16.0) / (3.1415926535898 * 36.0)
+        pulses = round(50 * (360.0 / 1.8 * 10.0 * 16.0) / (3.1415926535898 * 36.0))
         motor.assert_called_once()
         index, enable, value, queue = motor.call_args.args
         self.assertEqual((index, enable, queue), (0, True, True))
-        self.assertAlmostEqual(value, pulses, places=6)
+        self.assertIsInstance(value, int)          # sent as int32
+        self.assertEqual(value, pulses)
 
     def test_negative_speed_reverses(self):
         """
@@ -281,10 +282,10 @@ class TestKnownBugs(ClientTestCase):
     """
     Tests for known bugs in the Client implementation.
     """
-    @pytest.mark.xfail(strict=True, reason="send() does not release the lock when an exception occurs "
-                                           "-> Any subsequent call will be blocked indefinitely (use `with self.lock:`)")
     def test_lock_released_on_error(self):
-        """The lock is released even if parsing the response fails."""
+        """
+        The lock is released even if parsing the response fails.
+        """
         self.fake.responses[10] = floats(1, 2, 3)   # Pose too short -> struct.error during parsing in send()
         with self.assertRaises(struct.error):
             self.client.get_pose()
@@ -292,7 +293,9 @@ class TestKnownBugs(ClientTestCase):
 
     @pytest.mark.xfail(strict=True, reason="Message.read returns None -> send() raises AttributeError instead of DobotError")
     def test_invalid_response_raises_dobot_error(self):
-        """A response with a wrong header raises a DobotError."""
+        """
+        A response with a wrong header raises a DobotError.
+        """
         self.fake.auto_respond = False
         self.fake.queue(b"\x00\x00\x00")
         with self.assertRaises(DobotError):
@@ -300,32 +303,42 @@ class TestKnownBugs(ClientTestCase):
 
     @pytest.mark.xfail(strict=True, reason="Message.read returns None on timeout -> AttributeError instead of DobotError")
     def test_timeout_raises_dobot_error(self):
-        """A missing response (timeout) raises a DobotError."""
+        """
+        A missing response (timeout) raises a DobotError.
+        """
         self.fake.auto_respond = False
         with self.assertRaises(DobotError):
             self.client.get_pose()
 
     @pytest.mark.xfail(strict=True, raises=struct.error, reason="Parser ID 60 packs 4 floats, method passes 3")
     def test_set_end_effector_params(self):
-        """set_end_effector_params() sends the three offsets as floats."""
+        """
+        set_end_effector_params() sends the three offsets as floats.
+        """
         self.client.set_end_effector_params(1.0, 2.0, 3.0)
         self.assertEqual(self.fake.last, Frame(60, True, False, floats(1, 2, 3)))
 
     @pytest.mark.xfail(strict=True, raises=struct.error,
                        reason="Parser ID 89 expects 6 values (Bfffff), method passes 3")
     def test_set_point_to_point_sliding_rail_po_command(self):
-        """set_point_to_point_sliding_rail_po_command() can be sent."""
+        """
+        set_point_to_point_sliding_rail_po_command() can be sent.
+        """
         self.client.set_point_to_point_sliding_rail_po_command(50, 1, 1)
 
     @pytest.mark.xfail(strict=True, raises=struct.error, reason="Parser ID 137 format '<B' * 3")
     def test_get_color_sensor(self):
-        """get_color_sensor() returns (r, g, b)."""
+        """
+        get_color_sensor() returns (r, g, b).
+        """
         self.fake.responses[137] = [10, 20, 30]
         self.assertEqual(self.client.get_color_sensor(0), (10, 20, 30))
 
     @pytest.mark.xfail(strict=True, raises=struct.error, reason="Parser ID 20 format '<B' * 16")
     def test_get_alarms_state(self):
-        """get_alarms_state() can parse the 16-byte alarm response."""
+        """
+        get_alarms_state() can parse the 16-byte alarm response.
+        """
         self.fake.responses[20] = [0] * 16
         self.client.get_alarms_state()
 
@@ -333,7 +346,9 @@ class TestKnownBugs(ClientTestCase):
                        reason="Response to a non-queued setter (rw=1, queued=0) is read with the getter parser; "
                               "the response has no params -> x[0] fails")
     def test_non_queued_setter_with_empty_response(self):
-        """A non-queued setter with an empty response does not fail."""
+        """
+        A non-queued setter with an empty response does not fail.
+        """
         self.client.set_handheld_teaching_mode(1)
 
 

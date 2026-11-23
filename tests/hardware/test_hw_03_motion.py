@@ -115,18 +115,29 @@ class TestPath(MotionTestCase):
 class TestJog(MotionTestCase):
     """Jog motion."""
 
+    def wait_until_still(self, timeout=3.0, interval=0.1, tolerance=0.05):
+        """Polls z until it stops changing (arm finished decelerating); fails on timeout."""
+        last = self.position().z
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            time.sleep(interval)
+            current = self.position().z
+            if abs(current - last) < tolerance:
+                return current
+            last = current
+        self.fail(f"Arm still moving {timeout} s after jog stop")
+
     def test_jog_z_up_and_stop(self):
         """Jogging z upwards raises the arm, direction 0 stops it."""
         start = self.position()
         self.bot.jog("z", 1)
         time.sleep(0.5)
         self.bot.jog("z", 0)
-        time.sleep(0.3)
-        after_stop = self.position()
-        self.assertGreater(after_stop.z, start.z + 1)
+        after_stop = self.wait_until_still()  # arm decelerates, does not stop instantly
+        self.assertGreater(after_stop, start.z + 1)
 
         time.sleep(0.5)                      # after stop, nothing should move anymore
-        self.assertAlmostEqual(self.position().z, after_stop.z, delta=0.5)
+        self.assertAlmostEqual(self.position().z, after_stop, delta=0.5)
 
 
 if __name__ == "__main__":

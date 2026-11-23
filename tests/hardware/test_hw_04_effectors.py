@@ -6,8 +6,8 @@ Every class has its own marker. Only test the mounted tool, e.g.:
     pytest --dobot -m gripper
     pytest --dobot -m "hardware and not laser and not suction"
 
-The read-back tests also check the getter parser for IDs 61-63 (x[1] == 2 in parser.py),
-whose format could not be clarified in the unit tests.
+The read-back tests also check the getter parser for IDs 61-63 against the real Dobot
+(state bytes are 0/1; the former check x[1] == 2 was found wrong by test_close).
 """
 
 import unittest
