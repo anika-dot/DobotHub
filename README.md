@@ -89,7 +89,28 @@ In the client.py file the basic Dobot functions are defined in readable and unde
 In these files the functions we use in the final script are defined. A function can contain several different basic functions from client.py
 
 ## 💡 How to add a new function
-A new function based on the existing basic functions, defined in the client.py file, can be added easily by defining it in the respective file of the component.
+New user-facing functions go into the `Dobot` class in `dobot.py`. They combine one or more
+low-level methods from `client.py`.
+
+**1. Check if the client method exists.** Search `client.py` for the protocol command you need
+(see the communication protocol for the message ID). If it exists, go to step 3.
+
+**2. If not, add the protocol command** (only needed for commands not yet implemented):
+- `parser.py`: add an entry for the message ID. The list holds four parsers:
+  `[getter response, setter response, queued setter response, setter request]` (use `None` if not needed).
+- `client.py`: add a method that builds and sends the `Message`
+
+**3. Add the function to `dobot.py`** in the matching section (e.g. `# ----- Laser -----`).
+Give it a short English docstring. Commands that are queued on the Dobot should offer a
+`wait=True` parameter and call `self.wait()`
+
+**4. Write tests.**
+- Unit test in `tests/unit/test_dobot.py` (mocked client, no hardware)
+- If the function talks to the robot: hardware test in `tests/hardware/` with a matching marker.
+- Run `pytest` – all tests must pass.
+
+**5. Update the documentation.** Add the function to the *Features* list above (if user-facing)
+and log the change in [CHANGELOG.md](CHANGELOG.md) under `## [Unreleased]`
 
 ## 🐛 Testing
 Tests are written as `unittest.TestCase` classes and run with pytest.
