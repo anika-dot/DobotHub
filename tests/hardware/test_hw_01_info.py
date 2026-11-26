@@ -1,0 +1,95 @@
+"""
+Hardware-tests for DobotHub.
+Step 1: read-only. The arm does not move, nothing is changed.
+
+Run:  pytest --dobot tests/hardware/test_hw_01_info.py
+"""
+
+import struct
+import unittest
+
+import pytest
+
+from tests.hardware.base import HardwareTestCase
+
+
+class TestConnection(HardwareTestCase):
+    """Connection and device information."""
+
+    def test_connected(self):
+        """The serial connection is open."""
+        self.assertTrue(self.bot.connected())
+
+    def test_device_name_is_string(self):
+        """The device name is returned as a string."""
+        self.assertIsInstance(self.client.get_device_name(), str)
+
+    def test_device_serial_number_is_string(self):
+        """The serial number is returned as a string."""
+        self.assertIsInstance(self.client.get_device_serial_number(), str)
+
+    def test_device_version(self):
+        """The firmware version consists of three integers."""
+        version = self.client.get_device_version()
+        self.assertEqual(len(version), 3)
+        self.assertTrue(all(isinstance(v, int) for v in version))
+
+    def test_device_time_increases(self):
+        """The device clock does not run backwards."""
+        t1 = self.client.get_device_time()
+        t2 = self.client.get_device_time()
+        self.assertGreaterEqual(t2, t1)
+
+
+class TestPose(HardwareTestCase):
+    """Reading the current pose."""
+
+    def test_get_pose_returns_8_floats(self):
+        """get_pose() returns x, y, z, r and four joint angles as floats."""
+        pose = self.bot.get_pose()
+        self.assertEqual(len(pose), 8)
+        self.assertTrue(all(isinstance(v, float) for v in pose))
+
+    def test_get_pose_named_matches_raw(self):
+        """get_pose_named() contains the same position as get_pose()."""
+        named = self.bot.get_pose_named()
+        raw = self.bot.get_pose()
+        self.assertPositionAlmostEqual(named.position, raw[:4], delta=0.5)
+
+
+class TestQueue(HardwareTestCase):
+    """Command queue of the Dobot."""
+
+    def test_current_queue_index_is_int(self):
+        """The current queue index is a non-negative integer."""
+        index = self.client.get_current_queue_index()
+        self.assertIsInstance(index, int)
+        self.assertGreaterEqual(index, 0)
+
+    def test_queued_command_returns_increasing_index(self):
+        """Each queued command gets a higher queue index."""
+        i1 = self.client.wait(0)
+        i2 = self.client.wait(0)
+        self.assertGreater(i2, i1)
+
+
+class TestStatus(HardwareTestCase):
+    """Alarm, IO and teaching status."""
+
+    @pytest.mark.xfail(strict=True, raises=struct.error, reason="Parser ID 20 format '<B' * 16")
+    def test_get_alarms(self):
+        """Reading the alarm state works."""
+        self.bot.get_alarms()
+
+    @pytest.mark.xfail(strict=True, raises=struct.error, reason="Parser ID 133 format '<B' * 2")
+    def test_get_io_di(self):
+        """Reading the digital inputs works."""
+        self.client.get_io_di()
+
+    def test_handheld_teaching_state_is_bool(self):
+        """The handheld teaching state is returned as bool."""
+        self.assertIsInstance(self.client.get_handheld_teaching_state(), bool)
+
+
+if __name__ == "__main__":
+    unittest.main()

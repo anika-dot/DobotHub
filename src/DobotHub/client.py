@@ -34,11 +34,17 @@ class Client:
         )
 
     def send(self, message):
-        self.lock.acquire()
-        self.serial.write(message.package())
-        self.serial.flush()
-        response = Message.read(self.serial)
-        self.lock.release()
+        # Changed 
+        #self.lock.acquire()
+        #self.serial.write(message.package())
+        #self.serial.flush()
+        #response = Message.read(self.serial)
+        #self.lock.release()
+        #return response.params
+        with self.lock:
+            self.serial.write(message.package())
+            self.serial.flush()
+            response = Message.read(self.serial)
         return response.params
 
     def connected(self):
@@ -382,7 +388,7 @@ class Client:
         """
         steps_per_circle = 360.0 / 1.8 * 10.0 * 16.0
         mm_per_circle = 3.1415926535898 * 36.0
-        pulses = speed * steps_per_circle / mm_per_circle
+        pulses = round(speed * steps_per_circle / mm_per_circle)  # int32 pulses/s
         return self.set_extended_motor_velocity(index, enable, pulses, queue)
 
     def get_color_sensor(self, index):
